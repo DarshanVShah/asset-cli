@@ -1,25 +1,27 @@
-import * as path from "path";
 import * as fs from "fs";
 import { log, c } from "../util/log";
 import { scanDir, toRelative } from "../util/scanner";
 import { createCardForAsset } from "./create";
+import { resolveOptions } from "../util/config";
 
 interface CreateMissingOptions {
   force?: boolean;
 }
 
 export async function runCreateMissing(dir: string | undefined, options: CreateMissingOptions = {}): Promise<void> {
-  const cwd = process.cwd();
-  const targetDir = path.resolve(cwd, dir ?? "assets");
+  const opts = resolveOptions({ dirArg: dir });
+  const { cwd, assetsDir, ignore, supportedExtensions, configSource, configWarnings } = opts;
 
-  log.header(`asset-md create-missing ${c.dim(toRelative(targetDir, cwd) || ".")}`);
+  log.header(`asset-md create-missing ${c.dim(toRelative(assetsDir, cwd) || ".")}`);
+  if (configSource) log.dim(`config: ${toRelative(configSource, cwd)}`);
+  for (const w of configWarnings) log.warn(`config: ${w}`);
 
-  if (!fs.existsSync(targetDir)) {
-    log.warn(`Directory not found: ${toRelative(targetDir, cwd)}`);
+  if (!fs.existsSync(assetsDir)) {
+    log.warn(`Directory not found: ${toRelative(assetsDir, cwd)}`);
     return;
   }
 
-  const scan = await scanDir(targetDir);
+  const scan = await scanDir(assetsDir, { ignore, supportedExtensions });
 
   const created: string[] = [];
   const skipped: string[] = [];

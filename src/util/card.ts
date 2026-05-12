@@ -47,16 +47,18 @@ export interface LoadedCard {
   hasFrontmatter: boolean;
 }
 
-const DEFAULT_IGNORE = ["**/node_modules/**", "**/dist/**", "**/.git/**"];
+export interface FindCardsOptions {
+  ignore?: string[];
+}
 
-export async function findCards(targetDir: string): Promise<string[]> {
+export async function findCards(targetDir: string, options: FindCardsOptions = {}): Promise<string[]> {
   const abs = path.resolve(targetDir);
   if (!fs.existsSync(abs)) return [];
   const matches = await fg([`**/*${CARD_SUFFIX}`], {
     cwd: abs,
     onlyFiles: true,
     dot: false,
-    ignore: DEFAULT_IGNORE,
+    ignore: options.ignore ?? [],
     absolute: true,
   });
   return matches;
@@ -90,13 +92,29 @@ export interface ValidationResult {
   data?: CardFrontmatter;
 }
 
+export interface ValidateOptions {
+  allowMissingSource?: boolean; // skip on-disk source-file existence check
+}
+
 /**
- * Validate a single .ASSET.md card. Checks frontmatter shape (via zod),
- * that the source file exists on disk, and that every required H2 section
- * is present in the body.
+ * Validate a single .ASSET.md card. Performs all checks it can in one pass
+ * and returns the full set of issues so the caller can show every problem
+ * at once — frontmatter shape, source existence, and required H2 sections.
  */
-export function validateCard(card: LoadedCard, cwd: string = process.cwd()): ValidationResult {
+export function validateCard(
+  card: LoadedCard,
+  cwd: string = process.cwd(),
+  options: ValidateOptions = {},
+): ValidationResult {
   const issues: ValidationIssue[] = [];
+
+  // Sections are always checkable from the body, regardless of frontmatter health.
+  for (const section of REQUIRED_SECTIONS) {
+    const re = new RegExp(`^##\\s+${escapeRegex(section)}\\s*$`, "m");
+    if (!re.test(card.body)) {
+      issues.push({ field: "sections", message: `Missing required section: "## ${section}"` });
+    }
+  }
 
   if (!card.hasFrontmatter) {
     issues.push({ field: "frontmatter", message: "Card has no YAML frontmatter (expected at top of file)" });
@@ -114,6 +132,15 @@ export function validateCard(card: LoadedCard, cwd: string = process.cwd()): Val
       const field = issue.path.length > 0 ? issue.path.join(".") : "frontmatter";
       issues.push({ field, message: issue.message });
     }
+    // Try the source-file check using whatever `source` value the user wrote,
+    // so users get all the feedback at once.
+    const fm = card.frontmatter as { source?: unknown } | undefined;
+    if (!options.allowMissingSource && fm && typeof fm.source === "string" && fm.source.length > 0) {
+      const sourceAbs = path.isAbsolute(fm.source) ? fm.source : path.resolve(cwd, fm.source);
+      if (!fs.existsSync(sourceAbs)) {
+        issues.push({ field: "source", message: `Source file does not exist: ${fm.source}` });
+      }
+    }
     return {
       cardPath: card.cardPath,
       cardPathRelative: card.cardPathRelative,
@@ -124,17 +151,10 @@ export function validateCard(card: LoadedCard, cwd: string = process.cwd()): Val
 
   const data = parsed.data;
 
-  // Source file existence: resolve relative to repo root (cwd).
-  const sourceAbs = path.isAbsolute(data.source) ? data.source : path.resolve(cwd, data.source);
-  if (!fs.existsSync(sourceAbs)) {
-    issues.push({ field: "source", message: `Source file does not exist: ${data.source}` });
-  }
-
-  // Required sections in body.
-  for (const section of REQUIRED_SECTIONS) {
-    const re = new RegExp(`^##\\s+${escapeRegex(section)}\\s*$`, "m");
-    if (!re.test(card.body)) {
-      issues.push({ field: "sections", message: `Missing required section: "## ${section}"` });
+  if (!options.allowMissingSource) {
+    const sourceAbs = path.isAbsolute(data.source) ? data.source : path.resolve(cwd, data.source);
+    if (!fs.existsSync(sourceAbs)) {
+      issues.push({ field: "source", message: `Source file does not exist: ${data.source}` });
     }
   }
 

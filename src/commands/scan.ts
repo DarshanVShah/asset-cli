@@ -1,25 +1,27 @@
-import * as path from "path";
 import * as fs from "fs";
 import { log, c } from "../util/log";
 import { scanDir, toRelative } from "../util/scanner";
+import { resolveOptions } from "../util/config";
 
 interface ScanOptions {
   verbose?: boolean;
 }
 
 export async function runScan(dir: string | undefined, options: ScanOptions = {}): Promise<void> {
-  const cwd = process.cwd();
-  const targetDir = path.resolve(cwd, dir ?? "assets");
+  const opts = resolveOptions({ dirArg: dir });
+  const { cwd, assetsDir, ignore, supportedExtensions, configSource, configWarnings } = opts;
 
-  log.header(`asset-md scan ${c.dim(toRelative(targetDir, cwd) || ".")}`);
+  log.header(`asset-md scan ${c.dim(toRelative(assetsDir, cwd) || ".")}`);
+  if (configSource) log.dim(`config: ${toRelative(configSource, cwd)}`);
+  for (const w of configWarnings) log.warn(`config: ${w}`);
 
-  if (!fs.existsSync(targetDir)) {
-    log.warn(`Directory not found: ${toRelative(targetDir, cwd)}`);
+  if (!fs.existsSync(assetsDir)) {
+    log.warn(`Directory not found: ${toRelative(assetsDir, cwd)}`);
     log.dim("Run `asset-md init` to create the assets/ folder.");
     return;
   }
 
-  const result = await scanDir(targetDir);
+  const result = await scanDir(assetsDir, { ignore, supportedExtensions });
 
   log.info("");
   log.info(`${c.bold("Total assets found:")}      ${result.assets.length}`);

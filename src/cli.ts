@@ -63,7 +63,7 @@ program
   .command("manifest")
   .description("Generate ASSET_MANIFEST.json from all valid .ASSET.md cards")
   .argument("[dir]", "directory to scan for cards (default: assets)")
-  .option("-o, --output <file>", "manifest output path", "ASSET_MANIFEST.json")
+  .option("-o, --output <file>", "manifest output path (overrides config; default: ASSET_MANIFEST.json)")
   .action(async (dir, opts) => {
     await runManifest(dir, { output: opts.output });
   });

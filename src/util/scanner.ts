@@ -11,14 +11,9 @@ export interface ScanResult {
   ignored: string[];     // files we walked past but didn't recognize
 }
 
-const DEFAULT_IGNORE = [
-  "**/node_modules/**",
-  "**/dist/**",
-  "**/.git/**",
-];
-
 export interface ScanOptions {
   ignore?: string[];
+  supportedExtensions?: string[]; // override default extension set
 }
 
 /**
@@ -26,7 +21,8 @@ export interface ScanOptions {
  * Returns absolute paths. Caller can convert to posix-relative if needed.
  */
 export async function scanDir(targetDir: string, options: ScanOptions = {}): Promise<ScanResult> {
-  const ignore = [...DEFAULT_IGNORE, ...(options.ignore ?? [])];
+  const ignore = options.ignore ?? [];
+  const exts = (options.supportedExtensions ?? ALL_SUPPORTED_EXTS).map((e) => e.toLowerCase());
   const absDir = path.resolve(targetDir);
 
   if (!fs.existsSync(absDir)) {
@@ -52,7 +48,7 @@ export async function scanDir(targetDir: string, options: ScanOptions = {}): Pro
       continue;
     }
     const ext = path.extname(file).toLowerCase();
-    if (ALL_SUPPORTED_EXTS.includes(ext)) {
+    if (exts.includes(ext)) {
       assets.push(file);
     } else {
       ignored.push(file);

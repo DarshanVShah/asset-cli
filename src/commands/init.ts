@@ -1,6 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import { log, c } from "../util/log";
+import { ALL_SUPPORTED_EXTS } from "../constants";
 
 interface InitOptions {
   force?: boolean;
@@ -8,10 +9,10 @@ interface InitOptions {
 }
 
 const DEFAULT_CONFIG = {
-  version: "0.1.0",
   assetsDir: "assets",
-  manifestPath: "ASSET_MANIFEST.json",
-  ignore: ["**/node_modules/**", "**/dist/**", "**/.git/**"],
+  manifestOutput: "ASSET_MANIFEST.json",
+  ignore: ["**/node_modules/**", "**/.git/**", "**/dist/**"],
+  supportedExtensions: ALL_SUPPORTED_EXTS,
 };
 
 const DEFAULT_SPEC = `# ASSET.md Specification

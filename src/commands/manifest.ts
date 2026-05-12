@@ -1,13 +1,15 @@
-import * as path from "path";
 import * as fs from "fs";
+import * as path from "path";
 import { log, c } from "../util/log";
 import { VERSION } from "../constants";
 import { findCards, loadCard, validateCard, type CardFrontmatter } from "../util/card";
 import { toRelative } from "../util/scanner";
 import { toPosix } from "../util/paths";
+import { resolveOptions } from "../util/config";
 
 interface ManifestOptions {
   output?: string;
+  allowMissingSource?: boolean;
 }
 
 interface ManifestAsset {
@@ -55,21 +57,22 @@ function toManifestEntry(card: CardFrontmatter, cardPathRelative: string): Manif
 }
 
 export async function runManifest(dir: string | undefined, options: ManifestOptions = {}): Promise<void> {
-  const cwd = process.cwd();
-  const targetDir = path.resolve(cwd, dir ?? "assets");
-  const outputPath = path.resolve(cwd, options.output ?? "ASSET_MANIFEST.json");
+  const opts = resolveOptions({ dirArg: dir, outputArg: options.output });
+  const { cwd, assetsDir, manifestOutput, ignore, configSource, configWarnings } = opts;
 
-  log.header(`asset-md manifest ${c.dim(toRelative(targetDir, cwd) || ".")}`);
+  log.header(`asset-md manifest ${c.dim(toRelative(assetsDir, cwd) || ".")}`);
+  if (configSource) log.dim(`config: ${toRelative(configSource, cwd)}`);
+  for (const w of configWarnings) log.warn(`config: ${w}`);
 
-  if (!fs.existsSync(targetDir)) {
-    log.warn(`Directory not found: ${toRelative(targetDir, cwd)}`);
+  if (!fs.existsSync(assetsDir)) {
+    log.warn(`Directory not found: ${toRelative(assetsDir, cwd)}`);
     process.exitCode = 1;
     return;
   }
 
-  const cards = await findCards(targetDir);
+  const cards = await findCards(assetsDir, { ignore });
   if (cards.length === 0) {
-    log.warn(`No .ASSET.md files found in ${toRelative(targetDir, cwd)}`);
+    log.warn(`No .ASSET.md files found in ${toRelative(assetsDir, cwd)}`);
     return;
   }
 
@@ -78,7 +81,7 @@ export async function runManifest(dir: string | undefined, options: ManifestOpti
 
   for (const cardPath of cards) {
     const card = loadCard(cardPath, cwd);
-    const result = validateCard(card, cwd);
+    const result = validateCard(card, cwd, { allowMissingSource: options.allowMissingSource });
     if (!result.ok || !result.data) {
       invalid.push(result.cardPathRelative);
       continue;
@@ -86,7 +89,6 @@ export async function runManifest(dir: string | undefined, options: ManifestOpti
     entries.push(toManifestEntry(result.data, result.cardPathRelative));
   }
 
-  // Deterministic ordering for clean diffs.
   entries.sort((a, b) => a.id.localeCompare(b.id));
 
   const manifest: Manifest = {
@@ -95,9 +97,10 @@ export async function runManifest(dir: string | undefined, options: ManifestOpti
     assets: entries,
   };
 
-  fs.writeFileSync(outputPath, JSON.stringify(manifest, null, 2) + "\n", "utf8");
+  fs.mkdirSync(path.dirname(manifestOutput), { recursive: true });
+  fs.writeFileSync(manifestOutput, JSON.stringify(manifest, null, 2) + "\n", "utf8");
 
-  log.ok(`Wrote ${c.cyan(toPosix(path.relative(cwd, outputPath)))}`);
+  log.ok(`Wrote ${c.cyan(toPosix(path.relative(cwd, manifestOutput)))}`);
   log.info(`${c.green("Valid assets included:")} ${entries.length}`);
   if (invalid.length > 0) {
     log.warn(`${c.yellow("Skipped invalid cards:")}  ${invalid.length}`);
