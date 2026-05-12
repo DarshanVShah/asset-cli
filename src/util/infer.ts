@@ -42,17 +42,23 @@ const FOLDER_HINTS: Array<[RegExp, AssetType]> = [
   [/(^|\/)refs?(\/|$)/i, "reference"],
 ];
 
-// Filename keywords as fallback hints.
-const NAME_HINTS: Array<[RegExp, AssetType]> = [
-  [/\b(button|btn|panel|menu|hud|icon|cursor)\b/i, "ui"],
-  [/\b(bg|background|skybox)\b/i, "background"],
-  [/\b(tile|tileset)\b/i, "tileset"],
-  [/\b(coin|chest|potion|sword|item)\b/i, "prop"],
-  [/\b(player|enemy|npc|character|portrait|hero|villain)\b/i, "character"],
-  [/\b(theme|track|loop|music)\b/i, "music"],
-  [/\b(click|chime|whoosh|hit|explode|sfx)\b/i, "audio"],
-  [/\b(spark|smoke|fire|magic|aura|vfx)\b/i, "vfx"],
+// Filename keywords as fallback hints. We split the filename on common
+// separators (_, -, space, .) and check each token — JS \b doesn't cross
+// underscores, so "menu_button" wouldn't match \bbutton\b otherwise.
+const NAME_KEYWORDS: Array<[Set<string>, AssetType]> = [
+  [new Set(["button", "btn", "panel", "menu", "hud", "icon", "cursor"]), "ui"],
+  [new Set(["bg", "background", "skybox"]), "background"],
+  [new Set(["tile", "tileset"]), "tileset"],
+  [new Set(["coin", "chest", "potion", "sword", "item"]), "prop"],
+  [new Set(["player", "enemy", "npc", "character", "portrait", "hero", "villain"]), "character"],
+  [new Set(["theme", "track", "loop", "music"]), "music"],
+  [new Set(["click", "chime", "whoosh", "hit", "explode", "sfx"]), "audio"],
+  [new Set(["spark", "smoke", "fire", "magic", "aura", "vfx"]), "vfx"],
 ];
+
+function tokensOf(name: string): string[] {
+  return name.toLowerCase().split(/[_\-\s.]+/).filter((t) => t.length > 0);
+}
 
 function extKind(ext: string): AssetType | null {
   ext = ext.toLowerCase();
@@ -83,8 +89,9 @@ export function inferAssetType(assetPath: string): AssetType {
   if (extType) return extType;
 
   // 3. Filename keywords (for images we still couldn't place).
-  for (const [re, type] of NAME_HINTS) {
-    if (re.test(name)) return type;
+  const tokens = tokensOf(name);
+  for (const [keywords, type] of NAME_KEYWORDS) {
+    if (tokens.some((t) => keywords.has(t))) return type;
   }
 
   return "unknown";
