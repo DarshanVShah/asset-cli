@@ -8,6 +8,7 @@ import { runCreateMissing } from "./commands/createMissing";
 import { runValidate } from "./commands/validate";
 import { runManifest } from "./commands/manifest";
 import { runPrompt } from "./commands/prompt";
+import { runRules, RULES_TARGETS, type RulesTarget } from "./commands/rules";
 
 const program = new Command();
 
@@ -76,6 +77,29 @@ program
   .argument("<assetPath>", "path to the asset file")
   .action((assetPath) => {
     runPrompt(assetPath);
+  });
+
+program
+  .command("rules")
+  .description("Generate an asset-aware agent rule file (Claude, Cursor, Codex, AGENTS.md)")
+  .option(
+    "-t, --target <target>",
+    `which rules file to write: ${RULES_TARGETS.join(" | ")}`,
+  )
+  .option("-a, --all", "write rules for every supported target", false)
+  .option("-p, --print", "print rule content to stdout instead of writing files", false)
+  .option("-f, --force", "overwrite or rewrite existing rule content", false)
+  .action((opts) => {
+    if (opts.target && !RULES_TARGETS.includes(opts.target)) {
+      console.error(`Unknown target "${opts.target}". Choose one of: ${RULES_TARGETS.join(", ")}`);
+      process.exit(1);
+    }
+    runRules({
+      target: opts.target as RulesTarget | undefined,
+      all: Boolean(opts.all),
+      print: Boolean(opts.print),
+      force: Boolean(opts.force),
+    });
   });
 
 program.parseAsync(process.argv).catch((err) => {
