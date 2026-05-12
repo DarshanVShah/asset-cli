@@ -4,6 +4,7 @@ import { VERSION } from "./constants";
 import { runInit } from "./commands/init";
 import { runScan } from "./commands/scan";
 import { runCreate } from "./commands/create";
+import { runCreateMissing } from "./commands/createMissing";
 
 const program = new Command();
 
@@ -36,6 +37,15 @@ program
   .option("-f, --force", "overwrite an existing .ASSET.md card", false)
   .action((assetPath, opts) => {
     runCreate(assetPath, { force: Boolean(opts.force) });
+  });
+
+program
+  .command("create-missing")
+  .description("Create .ASSET.md cards for every asset in [dir] that doesn't have one")
+  .argument("[dir]", "directory to scan (default: assets)")
+  .option("-f, --force", "regenerate cards even if they already exist", false)
+  .action(async (dir, opts) => {
+    await runCreateMissing(dir, { force: Boolean(opts.force) });
   });
 
 program.parseAsync(process.argv).catch((err) => {
