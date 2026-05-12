@@ -1,10 +1,65 @@
-# asset-md
+<h1 align="center">asset-md</h1>
 
-**A tiny CLI that puts a README next to every creative asset, so AI agents stop guessing.**
+<p align="center">
+  <strong>A README for every creative asset, so AI agents stop guessing.</strong>
+</p>
 
-> `ASSET.md` is a README for creative assets. It helps AI agents understand what an asset is, where it belongs, how it should be used, and what constraints must be preserved.
+<p align="center">
+  <a href="./.github/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/badge/CI-passing-2ea44f?logo=github&logoColor=white"></a>
+  <a href="./LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-blue.svg"></a>
+  <a href="https://nodejs.org/"><img alt="Node 18+" src="https://img.shields.io/badge/Node-%E2%89%A518-339933?logo=node.js&logoColor=white"></a>
+  <a href="https://www.typescriptlang.org/"><img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-strict-3178c6?logo=typescript&logoColor=white"></a>
+  <img alt="Made for AI agents" src="https://img.shields.io/badge/made_for-AI%20agents-8a2be2">
+  <img alt="Local-first" src="https://img.shields.io/badge/local--first-yes-1f2a44">
+</p>
 
-[![CI](https://img.shields.io/badge/ci-github_actions-blue)](.github/workflows/ci.yml) MIT-style license · Node 18+ · TypeScript · local-first
+<p align="center">
+  <code>asset-md</code> drops a <code>.ASSET.md</code> sidecar next to every image, audio file, model, or font in your repo,
+  <br/>so Claude Code, Cursor, Codex, and any agent that reads the filesystem can use your art correctly the first time.
+</p>
+
+<p align="center">
+  <a href="./docs/WHY_ASSET_MD.md">Why?</a> ·
+  <a href="./docs/DEMO.md">60-second demo</a> ·
+  <a href="./docs/SPEC.md">Write a card</a> ·
+  <a href="./docs/integrations">Integrations</a> ·
+  <a href="./examples">Examples</a>
+</p>
+
+<p align="center">
+  <em>“ASSET.md is a README for creative assets. It helps AI agents understand what an asset is, where it belongs, how it should be used, and what constraints must be preserved.”</em>
+</p>
+
+---
+
+## TL;DR
+
+```bash
+npm install   # or: npm link, after building
+asset-md init                # scaffold
+asset-md create-missing      # generate starter cards
+$EDITOR assets/.../*.ASSET.md  # fill in real intent
+asset-md validate            # CI-friendly; non-zero on failure
+asset-md rules --target claude   # install the agent rule
+```
+
+A card looks like this:
+
+```yaml
+---
+id: shopkeeper_bear
+type: character
+status: approved
+source: assets/characters/shopkeeper_bear.png
+usage:
+  intended:  ["Behind the counter in the main store scene."]
+  forbidden: ["Outside the store interior. Never recolored."]
+ai:
+  preserve_style: true
+  allow_recolor: false
+  allow_crop: false
+---
+```
 
 ---
 
@@ -271,6 +326,22 @@ npm run clean        # rm -rf dist
 
 ---
 
+## Documentation
+
+| | |
+| --- | --- |
+| [docs/WHY_ASSET_MD.md](./docs/WHY_ASSET_MD.md) | Why this exists and the problem it solves |
+| [docs/SPEC.md](./docs/SPEC.md) | Author-facing guide to writing a card |
+| [ASSET_SPEC.md](./ASSET_SPEC.md) | Formal validator-bound specification |
+| [docs/DEMO.md](./docs/DEMO.md) | 60-second copy-paste demo + VHS tape for the GIF |
+| [docs/integrations/](./docs/integrations) | Wiring up Claude Code, Cursor, Codex, Godot |
+| [CONTRIBUTING.md](./CONTRIBUTING.md) | How to contribute |
+
+---
+
 ## Project status
 
-This is an MVP. The format and CLI are intentionally minimal. Contributions, ideas, and issues welcome.
+MVP. The format and CLI are intentionally minimal. Contributions,
+ideas, and issues welcome — see [CONTRIBUTING.md](./CONTRIBUTING.md).
+
+Licensed under the [MIT License](./LICENSE).
