@@ -7,6 +7,7 @@ import { runCreate } from "./commands/create";
 import { runCreateMissing } from "./commands/createMissing";
 import { runValidate } from "./commands/validate";
 import { runManifest } from "./commands/manifest";
+import { runPrompt } from "./commands/prompt";
 
 const program = new Command();
 
@@ -65,6 +66,14 @@ program
   .option("-o, --output <file>", "manifest output path", "ASSET_MANIFEST.json")
   .action(async (dir, opts) => {
     await runManifest(dir, { output: opts.output });
+  });
+
+program
+  .command("prompt")
+  .description("Print a compact agent instruction block for an asset's .ASSET.md card")
+  .argument("<assetPath>", "path to the asset file")
+  .action((assetPath) => {
+    runPrompt(assetPath);
   });
 
 program.parseAsync(process.argv).catch((err) => {
