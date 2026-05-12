@@ -1,43 +1,61 @@
 # asset-md
 
-> **ASSET.md is a README for creative assets.** It helps AI agents understand what an asset is, where it belongs, how it should be used, and what constraints must be preserved.
+**A tiny CLI that puts a README next to every creative asset, so AI agents stop guessing.**
 
-`asset-md` is a small TypeScript CLI that creates and maintains `.ASSET.md` sidecar files next to your creative/game assets (images, audio, video, 3D models, fonts). The cards are plain Markdown with YAML frontmatter, so they work great with Git, code review, and any AI coding agent.
+> `ASSET.md` is a README for creative assets. It helps AI agents understand what an asset is, where it belongs, how it should be used, and what constraints must be preserved.
 
-For every asset:
+[![CI](https://img.shields.io/badge/ci-github_actions-blue)](.github/workflows/ci.yml) MIT-style license · Node 18+ · TypeScript · local-first
+
+---
+
+## Before / after
+
+**Before.** Your AI agent sees:
 
 ```
 assets/characters/shopkeeper_bear.png
 ```
 
-there is a sibling card:
+…and has to guess. Is the bear an NPC? An enemy? A logo? Can it be recolored? Where does it go on screen?
+
+**After.** Your AI agent reads the sibling card you wrote *once*:
 
 ```
 assets/characters/shopkeeper_bear.ASSET.md
 ```
 
-The card tells humans and agents *what the asset is, where it should be used, and what constraints must be preserved* — so an AI agent picking up the asset doesn't infer its role from the filename alone.
+```yaml
+---
+id: shopkeeper_bear
+type: character
+status: approved
+source: assets/characters/shopkeeper_bear.png
+usage:
+  intended:  ["Behind the counter in the main store scene."]
+  forbidden: ["Outside the store interior. Never recolored."]
+ai:
+  preserve_style: true
+  allow_recolor: false
+  allow_crop: false
+---
+
+## Style constraints
+Palette is fixed: apron green #5a8a4f, bow #b8453d, fur #7a4f30.
+The painted texture is intentional — do not upscale or auto-trace.
+```
+
+Now the agent has explicit context, the constraints are version-controlled, and the rules are the same for every human, agent, and CI check.
 
 ---
 
-## Why this exists
-
-LLM coding agents are increasingly asked to wire up creative assets — drop a sprite into a scene, build a dialog UI, place an SFX cue. Filenames are not enough context: `bear.png` could be a character, a logo, or a decorative prop, and the model has no idea what palette, anchor, or layer it belongs on.
-
-`asset-md` solves that with the lightest-weight artifact possible: a Markdown file beside each asset. No daemon, no database, no proprietary format. Agents read it. Humans read it. CI validates it.
-
----
-
-## Install (local / repo-local)
+## Install
 
 ```bash
 git clone <this-repo>
 cd asset-cli
 npm install
 npm run build
-# Run via node:
-node dist/cli.js --help
-# Or link the binary globally:
+# Optionally link globally:
 npm link
 asset-md --help
 ```
@@ -46,105 +64,143 @@ Node 18+ required.
 
 ---
 
-## Quick start
+## 30-second quickstart
 
 ```bash
-# 1. Scaffold the project
-asset-md init
-
-# 2. Drop assets into assets/
-#    e.g. assets/characters/shopkeeper_bear.png
-
-# 3. See what's missing
-asset-md scan
-
-# 4. Generate starter cards for every asset
-asset-md create-missing
-
-# 5. Edit each .ASSET.md to fill in real intent
-$EDITOR assets/characters/shopkeeper_bear.ASSET.md
-
-# 6. Validate
-asset-md validate
-
-# 7. Generate the project manifest
-asset-md manifest
+asset-md init                  # scaffold ASSET_SPEC.md, asset-md.config.json, assets/, examples/
+# drop your art into assets/
+asset-md scan                  # see what's missing
+asset-md create-missing        # generate starter cards for every asset
+$EDITOR assets/.../*.ASSET.md  # fill in real intent
+asset-md validate              # CI-friendly; non-zero on any failure
+asset-md manifest              # produce ASSET_MANIFEST.json
+asset-md rules --target claude # drop the agent rule into CLAUDE.md
 ```
 
 ---
 
 ## Command reference
 
-### `asset-md init`
-
-Creates baseline project files: `ASSET_SPEC.md`, `asset-md.config.json`, `assets/`, `examples/`. Use `--force` to overwrite existing files.
-
-### `asset-md scan [dir]`
-
-Walks `[dir]` (default `assets/`) and reports counts for total assets, assets with a matching `.ASSET.md`, assets missing one, and ignored files. Use `--verbose` to list every path.
-
-### `asset-md create <assetPath>`
-
-Creates a starter `.ASSET.md` for a single asset. The type (`character`, `ui`, `audio`, etc.) is inferred from the folder name, file extension, and filename keywords. Use `--force` to overwrite an existing card.
-
-### `asset-md create-missing [dir]`
-
-Bulk version of `create`. Scans `[dir]` (default `assets/`) and writes a starter card for every supported asset that doesn't already have one.
-
-### `asset-md validate [dir]`
-
-Loads every `.ASSET.md` in `[dir]`, parses the YAML frontmatter, validates the shape (id, type, status, source required; type restricted to the spec's enum), checks the source file exists on disk, and verifies all seven required H2 sections are present. Exits non-zero on any failure — wire this into CI.
-
-### `asset-md manifest [dir]`
-
-Writes `ASSET_MANIFEST.json` at the repo root from every valid card. Use `--output <path>` to write somewhere else.
-
-### `asset-md prompt <assetPath>`
-
-Prints a compact agent instruction block for one asset. Pipe it directly into an AI agent's prompt, or copy it into a system message.
-
-```
-$ asset-md prompt assets/characters/shopkeeper_bear.png
-
-Before using `assets/characters/shopkeeper_bear.png`, read and follow `assets/characters/shopkeeper_bear.ASSET.md`.
-
-Asset summary:
-- Type: character
-- Status: approved
-- Intended use: Behind the counter in the main store scene.
-- Forbidden use: Outside the store interior (no overworld appearances).
-- Style preservation: true
-- Recolor allowed: false
-- Crop allowed: false
-
-Agent rule:
-Use this asset according to its asset card. Do not infer its role from the filename alone. Preserve all listed style and usage constraints.
-```
+| Command | Purpose |
+| --- | --- |
+| `asset-md init [--force]` | Scaffold `ASSET_SPEC.md`, `asset-md.config.json`, `assets/`, `examples/`. |
+| `asset-md scan [dir] [-v]` | Report total / with-card / missing-card / ignored counts. |
+| `asset-md create <assetPath> [--force]` | Write a starter card. Type inferred from folder → extension → filename tokens. |
+| `asset-md create-missing [dir] [--force]` | Bulk version of `create` for every supported asset without a card. |
+| `asset-md validate [dir] [--allow-missing-source]` | Schema + source-existence + section checks. Exits non-zero on failure. Reports every issue per card in one pass. |
+| `asset-md manifest [dir] [-o file] [--allow-missing-source]` | Write `ASSET_MANIFEST.json` (or any path) from every valid card. |
+| `asset-md prompt <assetPath>` | Print a compact agent instruction block for one asset. |
+| `asset-md rules [--target ...] [--all] [--print] [--force]` | Generate the agent rule into `CLAUDE.md`, `.cursor/rules/assets.mdc`, `CODEX.md`, or `AGENTS.md`. |
 
 Every command supports `--help`.
+
+---
+
+## Configuration
+
+`asset-md.config.json` at the repo root (or any ancestor) is automatically picked up. CLI arguments override config; config overrides defaults.
+
+```json
+{
+  "assetsDir": "assets",
+  "manifestOutput": "ASSET_MANIFEST.json",
+  "ignore": [
+    "**/node_modules/**",
+    "**/.git/**",
+    "**/dist/**"
+  ],
+  "supportedExtensions": [
+    ".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg",
+    ".wav", ".mp3", ".ogg",
+    ".mp4", ".webm",
+    ".glb", ".gltf", ".fbx", ".obj",
+    ".ttf", ".otf", ".woff", ".woff2"
+  ]
+}
+```
+
+Malformed config does not crash — it warns and falls back to defaults.
+
+---
+
+## Example workflow
+
+```bash
+# One-time setup.
+asset-md init
+asset-md rules --all                # drop rules for every agent platform
+
+# Daily loop.
+git pull
+asset-md scan                       # check who needs cards
+asset-md create-missing             # auto-generate starters for new art
+$EDITOR assets/.../bear.ASSET.md    # write the real card
+asset-md validate                   # fix any issues
+asset-md manifest                   # refresh the manifest
+git add assets/ ASSET_MANIFEST.json
+git commit -m "art: shopkeeper bear + card"
+```
+
+In CI, the same flow gates merges:
+
+```yaml
+# .github/workflows/assets.yml
+- run: npx asset-md validate
+- run: npx asset-md manifest
+```
+
+---
+
+## Agent rules — why and how
+
+When an AI coding agent reaches for an asset, it should:
+
+1. **Check for a sibling `.ASSET.md`.** If one exists, read it first.
+2. **Follow `usage.intended`, `usage.forbidden`, and the `ai.*` flags.** Don't infer the asset's role from the filename.
+3. **If a card is missing,** run `asset-md create <assetPath>` and fill it in before proceeding.
+
+`asset-md rules` writes that policy into the conventional rules file for each platform:
+
+| Target | File |
+| --- | --- |
+| `--target claude` | `CLAUDE.md` |
+| `--target cursor` | `.cursor/rules/assets.mdc` |
+| `--target codex`  | `CODEX.md` |
+| `--target agents` | `AGENTS.md` |
+| `--all` | all of the above |
+
+The command appends to existing files and is idempotent — it won't duplicate the block on re-run unless you pass `--force`.
+
+You can also pipe a single card directly into an agent's context:
+
+```bash
+asset-md prompt assets/characters/shopkeeper_bear.png | pbcopy
+```
 
 ---
 
 ## Supported file types
 
 | Category | Extensions |
-| -------- | ---------- |
+| --- | --- |
 | Image    | `.png`, `.jpg`, `.jpeg`, `.webp`, `.gif`, `.svg` |
 | Audio    | `.wav`, `.mp3`, `.ogg` |
 | Video    | `.mp4`, `.webm` |
 | 3D model | `.glb`, `.gltf`, `.fbx`, `.obj` |
 | Font     | `.ttf`, `.otf`, `.woff`, `.woff2` |
 
+Override the list via `supportedExtensions` in `asset-md.config.json`.
+
 ---
 
-## Asset card format
+## Card format
 
-See [`ASSET_SPEC.md`](./ASSET_SPEC.md) for the full specification. A minimal card:
+See [`ASSET_SPEC.md`](./ASSET_SPEC.md) for the full specification. In short:
 
 ```markdown
 ---
 id: shopkeeper_bear
-type: character
+type: character           # one of the spec's enum values
 status: draft
 tags: []
 source: assets/characters/shopkeeper_bear.png
@@ -152,10 +208,8 @@ engine:
   godot_node: AnimatedSprite2D
   anchor: bottom_center
 usage:
-  intended:
-    - Where this asset should be used.
-  forbidden:
-    - Where it should not be used.
+  intended:  [...]
+  forbidden: [...]
 ai:
   preserve_style: true
   allow_recolor: false
@@ -165,89 +219,58 @@ ai:
 # Asset: Shopkeeper Bear
 
 ## What this asset is
-...
-
 ## Intended use
-...
-
 ## Do not use for
-...
-
 ## Placement rules
-...
-
 ## Style constraints
-...
-
 ## Animation or interaction notes
-...
-
 ## Prompting guidance
-...
-```
-
----
-
-## Example agent rule (Claude / Cursor / Codex)
-
-Drop this into `CLAUDE.md`, `.cursorrules`, `AGENTS.md`, or wherever your agent reads project conventions:
-
-> **Working with assets in this repo.**
-> Every asset under `assets/` has a sibling `.ASSET.md` card. Before referencing, placing, editing, or generating around any asset, **read its `.ASSET.md` first** and follow the constraints in `usage.intended`, `usage.forbidden`, and the `ai.*` flags. Never infer an asset's role from its filename. If a card is missing, run `asset-md create <assetPath>` and fill it in before proceeding. To validate the whole project, run `asset-md validate`.
-
-You can also pipe a single card into the agent's context on demand:
-
-```bash
-asset-md prompt assets/characters/shopkeeper_bear.png | pbcopy
-```
-
----
-
-## Project layout
-
-```
-.
-├── ASSET_SPEC.md          # full card specification
-├── asset-md.config.json   # project config (ignore patterns etc.)
-├── assets/                # your real assets + sibling .ASSET.md cards
-├── ASSET_MANIFEST.json    # generated; commit or .gitignore as you prefer
-├── examples/              # sample projects with high-quality cards
-└── src/                   # CLI source
-```
-
----
-
-## Scripts
-
-```bash
-npm run build   # tsc → dist/
-npm run dev     # ts-node src/cli.ts -- <args>
-npm start       # node dist/cli.js
-npm run clean   # rm dist/
 ```
 
 ---
 
 ## Examples
 
-See [`examples/`](./examples) for three fully-written sample projects:
+[`examples/`](./examples) ships three high-quality sample projects:
 
-- `cozy-store-game/` — a small store-management game
-- `pixel-rpg/` — a top-down 32x32 pixel-art RPG
-- `visual-novel/` — a dialogue-heavy school-life VN
+- `cozy-store-game/` — store-management game (character, background, UI, audio)
+- `pixel-rpg/` — top-down 32x32 pixel-art RPG (character, prop, tileset)
+- `visual-novel/` — dialogue-heavy school-life VN (portrait, background, music)
 
-These don't include real binaries — they're a writing-style reference.
+No binaries are shipped. To validate them:
+
+```bash
+asset-md validate examples --allow-missing-source
+```
 
 ---
 
-## What this MVP does not do (yet)
+## Why local-first
 
-- No cloud sync.
-- No visual editor / web UI.
-- No MCP server.
-- No game-engine plugin.
-- No paid APIs.
-- No computer vision / auto-tagging.
-- No asset generation. Bring your own art.
+This is intentionally a local-first, plain-text tool:
 
-The CLI is intentionally useful even without AI — it scaffolds, validates, and indexes the cards your team writes by hand.
+- **No daemon, database, or cloud service** to set up or maintain.
+- **No proprietary format.** Cards are Markdown + YAML — friendly to humans, agents, Git, and code review.
+- **No paid APIs, no model calls.** The CLI is fully usable without AI; it just happens to be designed so that AI agents can use it well.
+
+If you want fancier downstream tooling (visual editor, MCP server, engine plugin, auto-tagging), build it on top — the card format is open and stable.
+
+---
+
+## Scripts
+
+```bash
+npm run build        # tsc -> dist/
+npm run dev          # ts-node src/cli.ts -- <args>
+npm start            # node dist/cli.js
+npm run lint         # tsc --noEmit
+npm test             # vitest run
+npm run test:watch   # vitest watch
+npm run clean        # rm -rf dist
+```
+
+---
+
+## Project status
+
+This is an MVP. The format and CLI are intentionally minimal. Contributions, ideas, and issues welcome.
