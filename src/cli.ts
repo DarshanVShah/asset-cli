@@ -5,6 +5,7 @@ import { runInit } from "./commands/init";
 import { runScan } from "./commands/scan";
 import { runCreate } from "./commands/create";
 import { runCreateMissing } from "./commands/createMissing";
+import { runValidate } from "./commands/validate";
 
 const program = new Command();
 
@@ -46,6 +47,14 @@ program
   .option("-f, --force", "regenerate cards even if they already exist", false)
   .action(async (dir, opts) => {
     await runCreateMissing(dir, { force: Boolean(opts.force) });
+  });
+
+program
+  .command("validate")
+  .description("Validate every .ASSET.md card in [dir] against the schema and required sections")
+  .argument("[dir]", "directory to scan (default: assets)")
+  .action(async (dir) => {
+    await runValidate(dir);
   });
 
 program.parseAsync(process.argv).catch((err) => {
