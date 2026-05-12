@@ -6,6 +6,7 @@ import { runScan } from "./commands/scan";
 import { runCreate } from "./commands/create";
 import { runCreateMissing } from "./commands/createMissing";
 import { runValidate } from "./commands/validate";
+import { runManifest } from "./commands/manifest";
 
 const program = new Command();
 
@@ -55,6 +56,15 @@ program
   .argument("[dir]", "directory to scan (default: assets)")
   .action(async (dir) => {
     await runValidate(dir);
+  });
+
+program
+  .command("manifest")
+  .description("Generate ASSET_MANIFEST.json from all valid .ASSET.md cards")
+  .argument("[dir]", "directory to scan for cards (default: assets)")
+  .option("-o, --output <file>", "manifest output path", "ASSET_MANIFEST.json")
+  .action(async (dir, opts) => {
+    await runManifest(dir, { output: opts.output });
   });
 
 program.parseAsync(process.argv).catch((err) => {
