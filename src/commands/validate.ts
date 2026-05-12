@@ -42,7 +42,7 @@ export async function runValidate(dir: string | undefined, options: ValidateOpti
       failCount++;
       log.err(c.red(result.cardPathRelative));
       for (const issue of result.issues) {
-        log.info(`    ${c.dim("✖")} ${c.yellow(issue.field)}: ${issue.message}`);
+        log.info(`    ${c.red("✖")} ${issue.message}`);
       }
     }
   }

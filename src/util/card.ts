@@ -79,9 +79,41 @@ export function loadCard(cardPath: string, cwd: string = process.cwd()): LoadedC
   };
 }
 
+export type ValidationCategory = "frontmatter" | "schema" | "source" | "sections";
+
 export interface ValidationIssue {
+  category: ValidationCategory;
   field: string;
   message: string;
+}
+
+const CATEGORY_ORDER: ValidationCategory[] = ["frontmatter", "schema", "source", "sections"];
+
+/** Sort issues for predictable display: frontmatter → schema → source → sections. */
+export function sortIssues(issues: ValidationIssue[]): ValidationIssue[] {
+  return [...issues].sort((a, b) => {
+    const ai = CATEGORY_ORDER.indexOf(a.category);
+    const bi = CATEGORY_ORDER.indexOf(b.category);
+    if (ai !== bi) return ai - bi;
+    return a.field.localeCompare(b.field);
+  });
+}
+
+/** Friendly message for one zod issue against the frontmatter schema. */
+function formatSchemaIssue(issue: z.ZodIssue, raw: unknown): string {
+  const field = issue.path.join(".") || "frontmatter";
+  // Required-but-missing: zod surfaces this as `invalid_type` with `received: "undefined"`.
+  if (issue.code === "invalid_type" && (issue as { received?: string }).received === "undefined") {
+    return `missing required field: ${field}`;
+  }
+  if (issue.code === "invalid_enum_value" && field === "type") {
+    const received = (raw as { type?: unknown } | undefined)?.type;
+    return `invalid type: ${JSON.stringify(received)} (expected one of: ${ASSET_TYPES.join(", ")})`;
+  }
+  if (issue.code === "too_small") {
+    return `${field} must not be empty`;
+  }
+  return `${field}: ${issue.message}`;
 }
 
 export interface ValidationResult {
@@ -108,53 +140,63 @@ export function validateCard(
 ): ValidationResult {
   const issues: ValidationIssue[] = [];
 
-  // Sections are always checkable from the body, regardless of frontmatter health.
+  // 1. Required H2 sections — always checkable from the body.
   for (const section of REQUIRED_SECTIONS) {
     const re = new RegExp(`^##\\s+${escapeRegex(section)}\\s*$`, "m");
     if (!re.test(card.body)) {
-      issues.push({ field: "sections", message: `Missing required section: "## ${section}"` });
+      issues.push({
+        category: "sections",
+        field: section,
+        message: `missing section: "## ${section}"`,
+      });
     }
   }
 
+  // 2. Frontmatter must exist.
   if (!card.hasFrontmatter) {
-    issues.push({ field: "frontmatter", message: "Card has no YAML frontmatter (expected at top of file)" });
+    issues.push({
+      category: "frontmatter",
+      field: "frontmatter",
+      message: "card has no YAML frontmatter (expected at top of file)",
+    });
     return {
       cardPath: card.cardPath,
       cardPathRelative: card.cardPathRelative,
       ok: false,
-      issues,
+      issues: sortIssues(issues),
     };
   }
 
+  // 3. Schema check. Collect every zod issue rather than bailing on the first.
   const parsed = CardFrontmatterSchema.safeParse(card.frontmatter);
+  let data: CardFrontmatter | undefined;
   if (!parsed.success) {
     for (const issue of parsed.error.issues) {
-      const field = issue.path.length > 0 ? issue.path.join(".") : "frontmatter";
-      issues.push({ field, message: issue.message });
+      const field = issue.path.join(".") || "frontmatter";
+      issues.push({
+        category: "schema",
+        field,
+        message: formatSchemaIssue(issue, card.frontmatter),
+      });
     }
-    // Try the source-file check using whatever `source` value the user wrote,
-    // so users get all the feedback at once.
-    const fm = card.frontmatter as { source?: unknown } | undefined;
-    if (!options.allowMissingSource && fm && typeof fm.source === "string" && fm.source.length > 0) {
-      const sourceAbs = path.isAbsolute(fm.source) ? fm.source : path.resolve(cwd, fm.source);
-      if (!fs.existsSync(sourceAbs)) {
-        issues.push({ field: "source", message: `Source file does not exist: ${fm.source}` });
-      }
-    }
-    return {
-      cardPath: card.cardPath,
-      cardPathRelative: card.cardPathRelative,
-      ok: false,
-      issues,
-    };
+  } else {
+    data = parsed.data;
   }
 
-  const data = parsed.data;
-
+  // 4. Source-file existence — runs even when schema failed, using the raw
+  //    value so the user sees every problem in one pass.
   if (!options.allowMissingSource) {
-    const sourceAbs = path.isAbsolute(data.source) ? data.source : path.resolve(cwd, data.source);
-    if (!fs.existsSync(sourceAbs)) {
-      issues.push({ field: "source", message: `Source file does not exist: ${data.source}` });
+    const rawSource = (card.frontmatter as { source?: unknown } | undefined)?.source;
+    const source = data?.source ?? (typeof rawSource === "string" ? rawSource : undefined);
+    if (source && source.length > 0) {
+      const sourceAbs = path.isAbsolute(source) ? source : path.resolve(cwd, source);
+      if (!fs.existsSync(sourceAbs)) {
+        issues.push({
+          category: "source",
+          field: "source",
+          message: `source file does not exist: ${source}`,
+        });
+      }
     }
   }
 
@@ -162,7 +204,7 @@ export function validateCard(
     cardPath: card.cardPath,
     cardPathRelative: card.cardPathRelative,
     ok: issues.length === 0,
-    issues,
+    issues: sortIssues(issues),
     data,
   };
 }
