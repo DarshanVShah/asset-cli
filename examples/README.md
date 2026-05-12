@@ -15,10 +15,15 @@ followed by the required H2 sections.
 Validate one of the examples:
 
 ```
-cd examples/cozy-store-game
-asset-md validate
+asset-md validate examples --allow-missing-source
 ```
 
-Validation will flag missing source files (because we don't ship the
-binaries). That's expected — the cards demonstrate the *writing
-style* you want, not the production state.
+We pass `--allow-missing-source` because we don't ship the binaries.
+The cards still validate against the schema and the required-section
+rules — only the on-disk source-file check is relaxed.
+
+You can also validate a single project:
+
+```
+asset-md validate examples/cozy-store-game --allow-missing-source
+```

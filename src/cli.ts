@@ -55,8 +55,9 @@ program
   .command("validate")
   .description("Validate every .ASSET.md card in [dir] against the schema and required sections")
   .argument("[dir]", "directory to scan (default: assets)")
-  .action(async (dir) => {
-    await runValidate(dir);
+  .option("--allow-missing-source", "do not fail when the file at `source:` is absent (useful for example projects without binaries)", false)
+  .action(async (dir, opts) => {
+    await runValidate(dir, { allowMissingSource: Boolean(opts.allowMissingSource) });
   });
 
 program
@@ -64,8 +65,9 @@ program
   .description("Generate ASSET_MANIFEST.json from all valid .ASSET.md cards")
   .argument("[dir]", "directory to scan for cards (default: assets)")
   .option("-o, --output <file>", "manifest output path (overrides config; default: ASSET_MANIFEST.json)")
+  .option("--allow-missing-source", "include cards whose source file does not exist on disk", false)
   .action(async (dir, opts) => {
-    await runManifest(dir, { output: opts.output });
+    await runManifest(dir, { output: opts.output, allowMissingSource: Boolean(opts.allowMissingSource) });
   });
 
 program
