@@ -3,6 +3,7 @@ import { Command } from "commander";
 import { VERSION } from "./constants";
 import { runInit } from "./commands/init";
 import { runScan } from "./commands/scan";
+import { runCreate } from "./commands/create";
 
 const program = new Command();
 
@@ -26,6 +27,15 @@ program
   .option("-v, --verbose", "list every asset path, not just the missing summary", false)
   .action(async (dir, opts) => {
     await runScan(dir, { verbose: Boolean(opts.verbose) });
+  });
+
+program
+  .command("create")
+  .description("Create a starter .ASSET.md card for a single asset")
+  .argument("<assetPath>", "path to the asset file")
+  .option("-f, --force", "overwrite an existing .ASSET.md card", false)
+  .action((assetPath, opts) => {
+    runCreate(assetPath, { force: Boolean(opts.force) });
   });
 
 program.parseAsync(process.argv).catch((err) => {
