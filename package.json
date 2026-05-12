@@ -1,0 +1,44 @@
+{
+  "name": "asset-md",
+  "version": "0.1.0",
+  "description": "Create and maintain .ASSET.md sidecar files for creative/game assets so AI agents understand how each asset should be used.",
+  "bin": {
+    "asset-md": "dist/cli.js"
+  },
+  "main": "dist/cli.js",
+  "type": "commonjs",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "ts-node src/cli.ts",
+    "start": "node dist/cli.js",
+    "clean": "rimraf dist",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "assets",
+    "game-dev",
+    "ai",
+    "markdown",
+    "cli",
+    "sidecar"
+  ],
+  "files": [
+    "dist",
+    "README.md",
+    "ASSET_SPEC.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "commander": "^12.1.0",
+    "fast-glob": "^3.3.2",
+    "gray-matter": "^4.0.3",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.5"
+  }
+}
