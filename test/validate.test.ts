@@ -161,4 +161,89 @@ ${FULL_BODY}`,
     const result = validateCard(loadCard(cardPath, tmpDir), tmpDir);
     expect(result.issues.some((i) => i.category === "frontmatter")).toBe(true);
   });
+
+  it("accepts an animation card whose every frame exists", () => {
+    writeFile("assets/characters/bear/walk_0.png", "");
+    writeFile("assets/characters/bear/walk_1.png", "");
+    writeFile("assets/characters/bear/walk_2.png", "");
+    const cardPath = writeFile(
+      "assets/characters/bear/walk.ASSET.md",
+      `---
+id: walk
+type: animation
+status: draft
+source: assets/characters/bear/walk_0.png
+frames:
+  - assets/characters/bear/walk_0.png
+  - assets/characters/bear/walk_1.png
+  - assets/characters/bear/walk_2.png
+---
+
+${FULL_BODY}`,
+    );
+    const result = validateCard(loadCard(cardPath, tmpDir), tmpDir);
+    expect(result.ok).toBe(true);
+    expect(result.data?.frames?.length).toBe(3);
+  });
+
+  it("flags missing frames in an animation card", () => {
+    writeFile("assets/characters/bear/walk_0.png", "");
+    // walk_1.png intentionally missing
+    const cardPath = writeFile(
+      "assets/characters/bear/walk.ASSET.md",
+      `---
+id: walk
+type: animation
+status: draft
+source: assets/characters/bear/walk_0.png
+frames:
+  - assets/characters/bear/walk_0.png
+  - assets/characters/bear/walk_1.png
+---
+
+${FULL_BODY}`,
+    );
+    const result = validateCard(loadCard(cardPath, tmpDir), tmpDir);
+    expect(result.ok).toBe(false);
+    const frameIssue = result.issues.find((i) => i.field === "frames");
+    expect(frameIssue?.message).toMatch(/walk_1\.png/);
+  });
+
+  it("rejects a single-frame `frames:` list (zod min(2))", () => {
+    const cardPath = writeFile(
+      "assets/characters/bear/walk.ASSET.md",
+      `---
+id: walk
+type: animation
+status: draft
+source: assets/characters/bear/walk_0.png
+frames:
+  - assets/characters/bear/walk_0.png
+---
+
+${FULL_BODY}`,
+    );
+    const result = validateCard(loadCard(cardPath, tmpDir), tmpDir);
+    expect(result.ok).toBe(false);
+    expect(result.issues.some((i) => i.field === "frames")).toBe(true);
+  });
+
+  it("allows missing frames when --allow-missing-source is set", () => {
+    const cardPath = writeFile(
+      "assets/characters/bear/walk.ASSET.md",
+      `---
+id: walk
+type: animation
+status: draft
+source: assets/characters/bear/walk_0.png
+frames:
+  - assets/characters/bear/walk_0.png
+  - assets/characters/bear/walk_1.png
+---
+
+${FULL_BODY}`,
+    );
+    const result = validateCard(loadCard(cardPath, tmpDir), tmpDir, { allowMissingSource: true });
+    expect(result.ok).toBe(true);
+  });
 });

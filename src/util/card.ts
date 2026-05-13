@@ -11,6 +11,9 @@ export const CardFrontmatterSchema = z.object({
   type: z.enum(ASSET_TYPES),
   status: z.string().min(1),
   source: z.string().min(1),
+  // Optional: for animation cards, the full ordered list of frame paths.
+  // When present, every entry must exist on disk (unless --allow-missing-source).
+  frames: z.array(z.string().min(1)).min(2).optional(),
   tags: z.array(z.string()).optional().default([]),
   engine: z
     .object({
@@ -184,10 +187,12 @@ export function validateCard(
   }
 
   // 4. Source-file existence — runs even when schema failed, using the raw
-  //    value so the user sees every problem in one pass.
+  //    value so the user sees every problem in one pass. For animation
+  //    cards (frames: [...]), every frame path is checked.
   if (!options.allowMissingSource) {
-    const rawSource = (card.frontmatter as { source?: unknown } | undefined)?.source;
-    const source = data?.source ?? (typeof rawSource === "string" ? rawSource : undefined);
+    const rawFm = (card.frontmatter ?? {}) as { source?: unknown; frames?: unknown };
+
+    const source = data?.source ?? (typeof rawFm.source === "string" ? rawFm.source : undefined);
     if (source && source.length > 0) {
       const sourceAbs = path.isAbsolute(source) ? source : path.resolve(cwd, source);
       if (!fs.existsSync(sourceAbs)) {
@@ -196,6 +201,20 @@ export function validateCard(
           field: "source",
           message: `source file does not exist: ${source}`,
         });
+      }
+    }
+
+    const frames = data?.frames ?? (Array.isArray(rawFm.frames) ? (rawFm.frames as unknown[]).filter((x): x is string => typeof x === "string") : undefined);
+    if (frames && frames.length > 0) {
+      for (const frame of frames) {
+        const frameAbs = path.isAbsolute(frame) ? frame : path.resolve(cwd, frame);
+        if (!fs.existsSync(frameAbs)) {
+          issues.push({
+            category: "source",
+            field: "frames",
+            message: `frame file does not exist: ${frame}`,
+          });
+        }
       }
     }
   }
