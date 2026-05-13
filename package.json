@@ -1,6 +1,6 @@
 {
   "name": "asset-md",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Create and maintain .ASSET.md sidecar files for creative/game assets so AI agents understand how each asset should be used.",
   "bin": {
     "asset-md": "dist/cli.js"
