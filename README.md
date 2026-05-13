@@ -139,9 +139,9 @@ asset-md rules --target claude # drop the agent rule into CLAUDE.md
 | Command | Purpose |
 | --- | --- |
 | `asset-md init [--force]` | Scaffold `ASSET_SPEC.md`, `asset-md.config.json`, `assets/`, `examples/`. |
-| `asset-md scan [dir] [-v]` | Report total / with-card / missing-card / ignored counts. |
-| `asset-md create <assetPath> [--force]` | Write a starter card. Type inferred from folder → extension → filename tokens. |
-| `asset-md create-missing [dir] [--force]` | Bulk version of `create` for every supported asset without a card. |
+| `asset-md scan [dir] [-v]` | Report animation groups and singletons, with/without cards. Auto-detects numbered series like `walk_0.png` … `walk_7.png`. |
+| `asset-md create <assetPath> [--force]` | Write a starter card for a single asset. Type inferred from folder → extension → filename tokens. |
+| `asset-md create-missing [dir] [--force]` | Bulk: one card per singleton, one card per animation group. |
 | `asset-md validate [dir] [--allow-missing-source]` | Schema + source-existence + section checks. Exits non-zero on failure. Reports every issue per card in one pass. |
 | `asset-md manifest [dir] [-o file] [--allow-missing-source]` | Write `ASSET_MANIFEST.json` (or any path) from every valid card. |
 | `asset-md prompt <assetPath>` | Print a compact agent instruction block for one asset. |
@@ -175,6 +175,36 @@ Every command supports `--help`.
 ```
 
 Malformed config does not crash — it warns and falls back to defaults.
+
+---
+
+## Animation grouping
+
+When several files form a numbered series — say `walk_0.png` through `walk_7.png` in the same folder — `asset-md` treats them as one animation and writes a single card:
+
+```
+assets/characters/bear/
+  walk_0.png
+  walk_1.png
+  ...
+  walk_7.png
+  walk.ASSET.md   ← one card covers the whole cycle
+```
+
+```yaml
+---
+id: walk
+type: character       # type stays semantic; frames is an orthogonal "this is animated" signal
+status: draft
+source: assets/characters/bear/walk_0.png
+frames:
+  - assets/characters/bear/walk_0.png
+  - ...
+  - assets/characters/bear/walk_7.png
+---
+```
+
+Detection: trailing digits with an optional `_`, `-`, or `.` separator (`walk_0`, `walk-01`, `frame0001`). Image extensions only in this MVP. Each frame must exist on disk to pass `asset-md validate`. `asset-md prompt walk_2.png` reads the group card automatically. See [`docs/SPEC.md`](./docs/SPEC.md#frames--optional-list-of-strings-animation-cards) for the full rules.
 
 ---
 

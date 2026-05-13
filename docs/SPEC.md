@@ -98,6 +98,32 @@ forward-slash form. The validator checks this file exists on disk
 Free-form. Tags exist for search and filtering by downstream tooling.
 Don't put *rules* in tags — rules belong in `usage` and `ai`.
 
+### `frames` — optional, list of strings (animation cards)
+
+When several files form a numbered animation series — `walk_0.png`,
+`walk_1.png`, …, `walk_7.png` — they share a single card named after
+the stem (`walk.ASSET.md`), and `frames:` lists every frame in order.
+
+```yaml
+source: assets/characters/bear/walk_0.png   # the first frame
+frames:
+  - assets/characters/bear/walk_0.png
+  - assets/characters/bear/walk_1.png
+  - ...
+```
+
+`asset-md create-missing` detects animation series automatically and
+writes one card per group. The asset `type` is independent of
+`frames`: a character's walk cycle is still `type: character`. Only
+when the path gives no signal does the type default to `animation`.
+
+Constraints:
+- Minimum two frames (a single file is just an asset, not an animation).
+- Every path in `frames` must exist on disk (`--allow-missing-source`
+  bypasses).
+- Animation grouping is image-only for now. Numbered audio variants
+  (`footstep_0.wav` …) still get one card per file.
+
 ### `engine` — optional, object
 
 Engine-specific hints. We ship `godot_node` and `anchor` because
@@ -219,6 +245,8 @@ asset, not when it's using this one directly.
 4. The file at `source` exists on disk (unless
    `--allow-missing-source` is set).
 5. Every required H2 section is present in the body.
+6. If `frames` is present, it must contain at least two paths and
+   every path must exist on disk.
 
 `asset-md validate` reports every issue in one pass and exits
 non-zero on failure — wire it into CI.

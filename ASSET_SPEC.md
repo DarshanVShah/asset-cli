@@ -58,6 +58,9 @@ reference     unknown
 
 ```yaml
 tags: [npc, mascot]              # free-form labels
+frames:                          # animation series, 2+ frames (see below)
+  - assets/characters/bear/walk_0.png
+  - assets/characters/bear/walk_1.png
 engine:
   godot_node: AnimatedSprite2D   # engine-specific node hint
   anchor: bottom_center
@@ -150,6 +153,48 @@ backgrounds, UI, audio, music, props, tilesets, and dialog portraits.
 
 ---
 
+## Animation cards (`frames`)
+
+When multiple files form a numbered animation series — `walk_0.png`,
+`walk_1.png`, …, `walk_7.png` — they share **one** card named after
+the stem: `walk.ASSET.md`. The frontmatter has a `frames:` list:
+
+```yaml
+---
+id: walk
+type: character            # type still describes WHAT this is — frames is orthogonal
+status: draft
+source: assets/characters/bear/walk_0.png   # first frame
+frames:
+  - assets/characters/bear/walk_0.png
+  - assets/characters/bear/walk_1.png
+  - ...
+  - assets/characters/bear/walk_7.png
+---
+```
+
+Detection rules (applied by `asset-md scan` and `create-missing`):
+
+- Frame names look like `<stem><sep?><digits><ext>` where `sep` is one
+  of `_`, `-`, `.`, or empty. So `walk_0.png`, `walk-01.png`,
+  `frame0001.png`, and `walk.0.png` all match. Stem must contain at
+  least one non-separator character.
+- Two or more files in the **same directory** with the same stem,
+  separator, and extension form a group. Singletons are not groups.
+- Only image extensions are grouped in this MVP. Audio/video variant
+  grouping (`footstep_0.wav` …) is out of scope.
+- If any per-frame card already exists (e.g. `walk_0.ASSET.md`),
+  `create-missing` skips the group and warns. Delete them or pass
+  `--force` to consolidate.
+
+`asset-md prompt` is animation-aware: calling it on any frame finds
+the group card (`prompt walk_2.png` → reads `walk.ASSET.md`).
+
+`asset-md manifest` adds the full `frames: [...]` array to a group's
+manifest entry so engines can iterate frames from one place.
+
+---
+
 ## Validation rules (enforced by `asset-md validate`)
 
 1. Card has YAML frontmatter (file begins with `---`).
@@ -157,6 +202,8 @@ backgrounds, UI, audio, music, props, tilesets, and dialog portraits.
 3. `type` is one of the allowed enum values.
 4. The file at `source` exists on disk (relative to the repo root).
 5. Every required H2 section is present in the body.
+6. If `frames` is present, it must contain at least two paths and
+   every path must exist on disk.
 
 Any failure causes `asset-md validate` to exit with a non-zero status code,
 making it CI-friendly.
@@ -185,6 +232,16 @@ the repo root:
     }
   ]
 }
+```
+
+For animation cards, the entry additionally includes:
+
+```json
+"frames": [
+  "assets/characters/bear/walk_0.png",
+  "assets/characters/bear/walk_1.png",
+  ...
+]
 ```
 
 Entries are sorted by `id` for deterministic diffs.
