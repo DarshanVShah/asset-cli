@@ -19,6 +19,7 @@ interface ManifestAsset {
   source: string;
   card: string;
   tags: string[];
+  frames?: string[]; // present only for animation groups
   usage: {
     intended: string[];
     forbidden: string[];
@@ -37,7 +38,7 @@ interface Manifest {
 }
 
 function toManifestEntry(card: CardFrontmatter, cardPathRelative: string): ManifestAsset {
-  return {
+  const entry: ManifestAsset = {
     id: card.id,
     type: card.type,
     status: card.status,
@@ -54,6 +55,8 @@ function toManifestEntry(card: CardFrontmatter, cardPathRelative: string): Manif
       allow_crop: card.ai?.allow_crop ?? false,
     },
   };
+  if (card.frames && card.frames.length >= 2) entry.frames = card.frames;
+  return entry;
 }
 
 export async function runManifest(dir: string | undefined, options: ManifestOptions = {}): Promise<void> {

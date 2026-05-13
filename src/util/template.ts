@@ -3,7 +3,8 @@ import type { AssetType } from "../constants";
 export interface CardTemplateInput {
   id: string;
   type: AssetType;
-  sourceRelative: string; // posix path relative to repo root
+  sourceRelative: string;          // posix path relative to repo root (first frame for animations)
+  framesRelative?: string[];       // ordered list, present only for animation groups
 }
 
 function humanizeId(id: string): string {
@@ -154,11 +155,24 @@ function defaultsFor(type: AssetType): {
 /**
  * Build the starter .ASSET.md content. The user is expected to edit each
  * section, but the defaults are typed so the file is useful out of the box.
+ *
+ * When `framesRelative` is provided (animation group), the card includes a
+ * `frames:` list and a frame-count-aware Animation section. The asset
+ * `type` is whatever the caller inferred — a character's walk cycle is
+ * still type=character; `frames` is an orthogonal "this is animated"
+ * signal. Callers should pass type=animation only when no other signal
+ * applies.
  */
 export function buildCardTemplate(input: CardTemplateInput): string {
-  const { id, type, sourceRelative } = input;
+  const { id, type, sourceRelative, framesRelative } = input;
+  const isAnimation = !!(framesRelative && framesRelative.length >= 2);
   const d = defaultsFor(type);
   const title = humanizeId(id);
+  const frameCount = framesRelative?.length ?? 0;
+
+  const framesBlock = isAnimation
+    ? "frames:\n" + framesRelative!.map((p) => `  - ${p}`).join("\n") + "\n"
+    : "";
 
   const frontmatter = `---
 id: ${id}
@@ -166,7 +180,7 @@ type: ${type}
 status: draft
 tags: []
 source: ${sourceRelative}
-engine:
+${framesBlock}engine:
   godot_node: ${d.engineNode}
   anchor: ${d.anchor}
 usage:
@@ -180,7 +194,13 @@ ai:
   allow_crop: ${d.allowCrop}
 ---`;
 
-  const body = `# Asset: ${title}
+  const animationNotes = isAnimation
+    ? `Animation has ${frameCount} frames. Specify the playback frame rate, whether it loops, and any sub-ranges (e.g. frames 0-3 for windup, 4-7 for swing).`
+    : "Describe allowed animations, interactions, sounds, or gameplay behavior.";
+
+  const titleHeading = isAnimation ? `${title} (${frameCount} frames)` : title;
+
+  const body = `# Asset: ${titleHeading}
 
 ## What this asset is
 Describe the asset in plain language.
@@ -198,7 +218,7 @@ Describe scale, anchor, layer, scene context, or UI placement.
 Describe what must be preserved (palette, line weight, silhouette, mood).
 
 ## Animation or interaction notes
-Describe allowed animations, interactions, sounds, or gameplay behavior.
+${animationNotes}
 
 ## Prompting guidance
 Describe how an AI should refer to this asset when editing, extending, or generating related assets.

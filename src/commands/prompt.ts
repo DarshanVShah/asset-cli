@@ -3,6 +3,7 @@ import * as path from "path";
 import { log } from "../util/log";
 import { cardPathFor, toPosix } from "../util/paths";
 import { CardFrontmatterSchema, loadCard } from "../util/card";
+import { parseFrameName } from "../util/grouping";
 
 function fmtList(items: string[] | undefined, fallback: string): string {
   if (!items || items.length === 0) return fallback;
@@ -13,8 +14,19 @@ function fmtList(items: string[] | undefined, fallback: string): string {
 export function runPrompt(assetPath: string): void {
   const cwd = process.cwd();
   const absAsset = path.isAbsolute(assetPath) ? assetPath : path.resolve(cwd, assetPath);
-  const cardPath = cardPathFor(absAsset);
   const relAsset = toPosix(path.relative(cwd, absAsset));
+
+  // Resolve the card path. Prefer a per-file sibling card, but fall back to
+  // an animation group card (<stem>.ASSET.md) if the asset looks like a frame.
+  const perFileCard = cardPathFor(absAsset);
+  let cardPath = perFileCard;
+  if (!fs.existsSync(cardPath)) {
+    const parsed = parseFrameName(path.basename(absAsset));
+    if (parsed) {
+      const groupCard = path.join(path.dirname(absAsset), parsed.stem + ".ASSET.md");
+      if (fs.existsSync(groupCard)) cardPath = groupCard;
+    }
+  }
   const relCard = toPosix(path.relative(cwd, cardPath));
 
   if (!fs.existsSync(cardPath)) {
@@ -42,12 +54,17 @@ export function runPrompt(assetPath: string): void {
   const allowRecolor = d.ai?.allow_recolor ?? false;
   const allowCrop = d.ai?.allow_crop ?? false;
 
+  const frameLine = d.frames && d.frames.length >= 2
+    ? `- Frames: ${d.frames.length}  (this card covers a numbered animation series)`
+    : null;
+
   const out = [
     `Before using \`${relAsset}\`, read and follow \`${relCard}\`.`,
     "",
     "Asset summary:",
     `- Type: ${d.type}`,
     `- Status: ${d.status}`,
+    ...(frameLine ? [frameLine] : []),
     `- Intended use: ${intended}`,
     `- Forbidden use: ${forbidden}`,
     `- Style preservation: ${preserveStyle}`,
